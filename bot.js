@@ -1,11 +1,13 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');  // Para manipulação de arquivos
+const puppeteer = require('puppeteer-core');
 
 let clientsInProgress = {};  // Armazena o estado de cada cliente
 
 // Cria uma nova instância do cliente
 const client = new Client({
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
     authStrategy: new LocalAuth(), // Autenticação local, mantém você logado
 });
 
