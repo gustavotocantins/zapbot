@@ -7,9 +7,12 @@ let clientsInProgress = {};  // Armazena o estado de cada cliente
 
 // Cria uma nova instância do cliente
 const client = new Client({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    authStrategy: new LocalAuth(), // Autenticação local, mantém você logado
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  },
+  authStrategy: new LocalAuth() // Autenticação local, mantém você logado
 });
+
 
 // Gera o QR code para login no WhatsApp Web
 client.on('qr', (qr) => {
