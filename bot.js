@@ -1,6 +1,10 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const fs = require('fs');  // Para manipulação de arquivos
+const puppeteer = require('puppeteer-core');
+const browser = await puppeteer.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+});
 
 let clientsInProgress = {};  // Armazena o estado de cada cliente
 
