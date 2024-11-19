@@ -3,7 +3,10 @@ const qrcode = require('qrcode-terminal');
 
 // Cria uma nova instância do cliente
 const client = new Client({
-    authStrategy: new LocalAuth(), // Autenticação local, mantém você logado
+    authStrategy: new LocalAuth(), 
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    },
 });
 
 // Gera o QR code para login no WhatsApp Web
