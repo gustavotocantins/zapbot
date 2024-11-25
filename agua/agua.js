@@ -5,16 +5,8 @@ const path = require('path');
 const sessionPath = path.join(__dirname, 'session');
 
 // Variáveis para armazenar as informações do pedido
-let pedido = {
-    tipoAgua: '',
-    quantidade: 0,
-    nome: '',
-    telefone: '',
-    endereco: '',
-    pagamento: '',
-    troco: '',
-    estado: ''  // Para controlar o estado do pedido
-};
+let pedidos = {}; // Objeto para rastrear pedidos por usuário
+
 
 // Definir os tipos de água e seus preços
 const aguas = [
@@ -71,7 +63,22 @@ const numerosPorExtenso = {
 // Evento para capturar mensagens recebidas
 client.on('message', (message) => {
     console.log(`Mensagem recebida: ${message.body}`);
+    const userId = message.from;
+    if (!pedidos[userId]) {
+        pedidos[userId] = {
+            tipoAgua: '',
+            quantidade: 0,
+            nome: '',
+            telefone: '',
+            endereco: '',
+            pagamento: '',
+            troco: '',
+            estado: ''  // Para controlar o estado do pedido
+        };
+    }
 
+    let pedido = pedidos[userId];
+    
     // Quando o cliente enviar "Oi", "Olá" ou qualquer saudação
     if (pedido.estado === "") {
         message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
@@ -218,16 +225,7 @@ client.on('message', (message) => {
 
         // Enviar Pedido para o contato pessoal do dono
         client.sendMessage('559192431116@c.us', `Novo Pedido✅ ${mensagemResumo}`);
-        pedido = {
-            tipoAgua: '',
-            quantidade: 0,
-            nome: '',
-            telefone: '',
-            endereco: '',
-            pagamento: '',
-            troco: '',
-            estado: ''  // Para controlar o estado do pedido
-        }; // Resetar o pedido para iniciar um novo atendimento
+        delete pedidos[userId]; // Resetar o pedido para iniciar um novo atendimento
     }
 });
 
