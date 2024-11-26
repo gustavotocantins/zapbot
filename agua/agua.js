@@ -108,9 +108,6 @@ const numerosPorExtenso = {
 // Função para gerenciar a resposta do cliente
 async function handleClientResponse(client, message) {
     const pedido = clientsInProgress[message.from];
-
-    // Reinicia o temporizador sempre que o cliente interage
-    resetInactivityTimer(message.from);
     // Quando o cliente enviar "Oi", "Olá" ou qualquer saudação
 
     // Se o cliente responder "Sim" ou "Não"
