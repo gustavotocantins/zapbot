@@ -1,51 +1,30 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const path = require('path');
+const { Client, LocalAuth, MessageMedia } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const fs = require('fs');  // Para manipulação de arquivos
 const axios = require('axios');
+const path = require('path');
 
-// Definir diretório de sessão
-const sessionPath = path.join(__dirname, 'session');
+let clientsInProgress = {};  // Armazena o estado de cada cliente
+let clientTimers = {};  // Armazena os temporizadores para cada cliente
 
-// Variáveis para armazenar as informações do pedido
-let pedido = {
-    tipoAgua: '',
-    quantidade: 0,
-    nome: '',
-    telefone: '',
-    endereco: '',
-    pagamento: '',
-    taxa:0,
-    troco: '',
-    estado: ''  // Para controlar o estado do pedido
-};
-
-// Definir os tipos de água e seus preços
-const aguas = [
-    { nome: 'Nossa Água', preco: 10 },
-    { nome: 'Água Cristal', preco: 12 },
-    { nome: 'Indaiá', preco: 15 }
-];
-
+// Cria uma nova instância do cliente
 const client = new Client({
+    authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: '/usr/bin/chromium-browser', // Caminho do navegador
+        executablePath: '/usr/bin/chromium-browser',
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    },
-    authStrategy: new LocalAuth({
-        clientId: 'bot',
-        dataPath: sessionPath // Especifica o diretório da sessão
-    })
+    }, 
 });
 
-// Evento para exibir o QR Code no terminal
+// Gera o QR code para login no WhatsApp Web
 client.on('qr', (qr) => {
-    const qrcode = require('qrcode-terminal');
     qrcode.generate(qr, { small: true });
-    console.log('QR Code gerado, escaneie com o WhatsApp!');
+    console.log('Escaneie o QR Code para autenticar no WhatsApp');
 });
 
-// Evento que sinaliza que o cliente está pronto
+// Quando o cliente estiver pronto para enviar e receber mensagens
 client.on('ready', () => {
-    console.log('Cliente está pronto!');
+    console.log('O bot está pronto para enviar e receber mensagens!');
 });
 
 async function getBairro(latitude, longitude) {
@@ -77,6 +56,39 @@ async function getBairro(latitude, longitude) {
     }
 }
 
+// Quando uma nova mensagem for recebida
+client.on('message', (message) => {
+    // Verifica se a mensagem foi enviada em um chat privado
+    if (!message.isGroupMsg) {
+        console.log(message.body);
+
+        if (!clientsInProgress[message.from]) {
+            // Marca o cliente como em atendimento e envia a mensagem de boas-vindas
+            clientsInProgress[message.from] = {tipoAgua: '',
+                quantidade: 0,
+                nome: '',
+                telefone: '',
+                endereco: '',
+                pagamento: '',
+                taxa:0,
+                troco: '',
+                estado: 'iniciar' }; // Inicia no estágio 1
+            message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
+                .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?'));
+             // Inicia o pedido
+            // Inicia o temporizador de 5 minutos
+            startInactivityTimer(message.from);
+        } else {
+            // Verifica o estado do cliente e responde de acordo
+            handleClientResponse(client, message);
+        }
+    }
+});
+const aguas = [
+    { nome: 'Nossa Água', preco: 10 },
+    { nome: 'Água Cristal', preco: 12 },
+    { nome: 'Indaiá', preco: 15 }
+];
 const TermosConfirmo = [
     'sim', 'quero', 'claro', 'pode ser', 'pode abrir', 'ok', 'beleza', 
     'simmm', 'siiim', 'isso mesmo', 'com certeza', 'afirmativo', 
@@ -89,7 +101,6 @@ const TermosConfirmo = [
     'já quero', 'aceito', 'certo pode abrir', 'pode colocar','agua','água','galão','gostaria',
 ];
 const Confirmo = new RegExp(`\\b(${TermosConfirmo.join('|')})\\b`, 'i');
-
 const numerosPorExtenso = {
     'um': 1,
     'uma': 1,
@@ -98,20 +109,16 @@ const numerosPorExtenso = {
     'três': 3,
     'tres': 3
 };
+// Função para gerenciar a resposta do cliente
+async function handleClientResponse(client, message) {
+    const pedido = clientsInProgress[message.from];
 
-// Evento para capturar mensagens recebidas
-client.on('message', async (message) => {
-    console.log(`Mensagem recebida: ${message.body}`);
-
+    // Reinicia o temporizador sempre que o cliente interage
+    resetInactivityTimer(message.from);
     // Quando o cliente enviar "Oi", "Olá" ou qualquer saudação
-    if (pedido.estado === "") {
-        message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
-        .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?'));
-        pedido.estado = 'iniciar'; // Inicia o pedido
-    }
 
     // Se o cliente responder "Sim" ou "Não"
-    else if (pedido.estado === 'iniciar' && Confirmo.test(message.body.toLowerCase())) {
+    if (pedido.estado === 'iniciar' && Confirmo.test(message.body.toLowerCase())) {
         let options = aguas.map((agua, index) => `${index + 1}. ${agua.nome} - Valor: R$ ${agua.preco}`).join('\n');
         message.reply('Ótimo! Vamos começar. Escolha o *tipo de água* que deseja:')
         .then(() => client.sendMessage(message.from,options));
@@ -214,17 +221,7 @@ client.on('message', async (message) => {
                 pedido.taxa = 8.5;
             } else{
                 client.sendMessage(message.from, `Poxa, sentimos muito! Ainda não estamos atendendo o bairro *${bairro},* mas esperamos chegar aí em breve!`);
-                pedido = {
-                    tipoAgua: '',
-                    quantidade: 0,
-                    nome: '',
-                    telefone: '',
-                    endereco: '',
-                    pagamento: '',
-                    taxa:0,
-                    troco: '',
-                    estado: ''  // Para controlar o estado do pedido
-                };
+                delete clientsInProgress[message.from];
                 return
             }
         pedido.estado = 'pagamento';
@@ -300,19 +297,34 @@ client.on('message', async (message) => {
 
         // Enviar Pedido para o contato pessoal do dono
         client.sendMessage('559192431116@c.us', `Novo Pedido✅ ${mensagemResumo}`);
-        pedido = {
-            tipoAgua: '',
-            quantidade: 0,
-            nome: '',
-            telefone: '',
-            endereco: '',
-            pagamento: '',
-            taxa:0,
-            troco: '',
-            estado: ''  // Para controlar o estado do pedido
-        }; // Resetar o pedido para iniciar um novo atendimento
+        delete clientsInProgress[message.from]; // Resetar o pedido para iniciar um novo atendimento
     }
-});
+}
 
-// Inicializar o cliente
+
+// Função para iniciar o temporizador de inatividade (5 minutos)
+function startInactivityTimer(clientId) {
+    clientTimers[clientId] = setTimeout(() => {
+        // Se não houver interação por 5 minutos, reinicia o atendimento
+        console.log(`Cliente ${clientId} inativo por 5 minutos. Reiniciando atendimento...`);
+        resetClientState(clientId);
+    }, 10 * 60 * 1000); // 5 minutos
+}
+
+// Função para resetar o temporizador de inatividade (sempre que o cliente interagir)
+function resetInactivityTimer(clientId) {
+    if (clientTimers[clientId]) {
+        clearTimeout(clientTimers[clientId]);  // Limpa o temporizador anterior
+        startInactivityTimer(clientId);  // Inicia um novo temporizador
+    }
+}
+
+// Função para reiniciar o estado do cliente
+function resetClientState(clientId) {
+    if (clientsInProgress[clientId]) {
+        delete clientsInProgress[clientId];  // Reinicia o estado do cliente
+    }
+}
+
+// Iniciar o cliente
 client.initialize();
