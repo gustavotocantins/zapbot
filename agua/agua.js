@@ -1,12 +1,22 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const path = require('path');
+const axios = require('axios');
 
 // Definir diretório de sessão
 const sessionPath = path.join(__dirname, 'session');
 
 // Variáveis para armazenar as informações do pedido
-let pedidos = {}; // Objeto para rastrear pedidos por usuário
-
+let pedido = {
+    tipoAgua: '',
+    quantidade: 0,
+    nome: '',
+    telefone: '',
+    endereco: '',
+    pagamento: '',
+    taxa:0,
+    troco: '',
+    estado: ''  // Para controlar o estado do pedido
+};
 
 // Definir os tipos de água e seus preços
 const aguas = [
@@ -38,6 +48,35 @@ client.on('ready', () => {
     console.log('Cliente está pronto!');
 });
 
+async function getBairro(latitude, longitude) {
+    try {
+        const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+            params: {
+                lat: latitude,
+                lon: longitude,
+                format: 'json',
+                addressdetails: 1,
+            },
+            headers: {
+        'User-Agent': 'Bot/1.0 (your.email@example.com)'  // Adicione seu user-agent personalizado aqui
+    }
+        });
+
+        // Verifica se o endereço contém o bairro
+        const address = response.data.address;
+        if (address && address.suburb) {
+            return address.suburb; // Retorna o nome do bairro
+        } else if (address && address.neighbourhood) {
+            return address.neighbourhood; // Retorna o nome do bairro (caso o bairro esteja em "neighbourhood")
+        } else {
+            return 'Bairro não encontrado'; // Caso o bairro não seja encontrado
+        }
+    } catch (error) {
+        console.error('Erro ao obter bairro:', error);
+        return 'Erro ao obter o bairro';
+    }
+}
+
 const TermosConfirmo = [
     'sim', 'quero', 'claro', 'pode ser', 'pode abrir', 'ok', 'beleza', 
     'simmm', 'siiim', 'isso mesmo', 'com certeza', 'afirmativo', 
@@ -47,7 +86,7 @@ const TermosConfirmo = [
     'vamos nessa', 'estou precisando', 'preciso sim', 'anota aí', 
     'favor abrir', 'faça o pedido', 'ok pode ser', 'manda sim', 
     'sim por favor', 'pode sim', 'claro que sim', 'certo', 
-    'já quero', 'aceito', 'certo pode abrir', 'pode colocar'
+    'já quero', 'aceito', 'certo pode abrir', 'pode colocar','agua','água','galão','gostaria',
 ];
 const Confirmo = new RegExp(`\\b(${TermosConfirmo.join('|')})\\b`, 'i');
 
@@ -61,24 +100,9 @@ const numerosPorExtenso = {
 };
 
 // Evento para capturar mensagens recebidas
-client.on('message', (message) => {
+client.on('message', async (message) => {
     console.log(`Mensagem recebida: ${message.body}`);
-    const userId = message.from;
-    if (!pedidos[userId]) {
-        pedidos[userId] = {
-            tipoAgua: '',
-            quantidade: 0,
-            nome: '',
-            telefone: '',
-            endereco: '',
-            pagamento: '',
-            troco: '',
-            estado: ''  // Para controlar o estado do pedido
-        };
-    }
 
-    let pedido = pedidos[userId];
-    
     // Quando o cliente enviar "Oi", "Olá" ou qualquer saudação
     if (pedido.estado === "") {
         message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
@@ -162,20 +186,60 @@ client.on('message', (message) => {
     else if (pedido.estado === 'endereco') {
         pedido.endereco = message.body;
         message.reply(`Você informou o seguinte endereço: ${pedido.endereco}.`)
-        .then(() => client.sendMessage(message.from,'Por fim, qual será a forma de pagamento? Responda "Dinheiro" ou "Pix".'));
-        pedido.estado = 'pagamento'; // Passar para o próximo passo
+        .then(() => client.sendMessage(message.from,'Vamos verificar a taxa de entrega. Mande a sua *localização fixa:*\n*Android:* clique no clip 📎, selecione localização e escolha a opção “localização atual”.\n*iPhone:* clique no ➕, selecione localização e escolha a opção “localização atual”.'));
+        pedido.estado = 'taxa'; // Passar para o próximo passo
     }
-
+    else if(message.location && pedido.estado === 'taxa'){
+        const { latitude, longitude } = message.location;
+        const bairro = await getBairro(latitude, longitude);
+            if (bairro === "Campina" || bairro === "Cidade Velha"){
+                client.sendMessage(message.from, `A entrega para o bairro Campina é *gratuita!*`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 0;
+            } else if(bairro == "Umarizal"){
+                client.sendMessage(message.from, `A taxa de entrega para o bairro *${bairro}* é de R$ 15,00`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 15;
+            } else if(bairro == 'Jurunas'){
+                client.sendMessage(message.from, `A taxa de entrega para o bairro *${bairro}* é de R$ 14,80`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 14.8;
+            }else if(bairro == 'Nazaré'){
+                client.sendMessage(message.from, `A taxa de entrega para o bairro *${bairro}* é de R$ 16,50`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 16.5;
+            }else if(bairro == 'Reduto'){
+                client.sendMessage(message.from, `A taxa de entrega para o bairro *${bairro}* é de R$ 8,50`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 8.5;
+            } else{
+                client.sendMessage(message.from, `Poxa, sentimos muito! Ainda não estamos atendendo o bairro *${bairro},* mas esperamos chegar aí em breve!`);
+                pedido = {
+                    tipoAgua: '',
+                    quantidade: 0,
+                    nome: '',
+                    telefone: '',
+                    endereco: '',
+                    pagamento: '',
+                    taxa:0,
+                    troco: '',
+                    estado: ''  // Para controlar o estado do pedido
+                };
+                return
+            }
+        pedido.estado = 'pagamento';
+    }
     // Receber a forma de pagamento
     else if (pedido.estado === 'pagamento') {
         if (message.body.toLowerCase() === 'dinheiro') {
             pedido.pagamento = 'Dinheiro';
-            message.reply('Você escolheu pagamento em dinheiro. Precisa de troco? Responda "Sim" ou "Não".');
+            message.reply('Você escolheu pagamento em dinheiro. Precisa de troco?');
             pedido.estado = 'troco'; // Passar para o próximo passo
         } else if (message.body.toLowerCase() === 'pix') {
             pedido.pagamento = 'Pix';
-            message.reply('Você escolheu pagamento via Pix.');
-            message.reply('Agora vou passar o resumo do seu pedido.');
+            message.reply('Você escolheu pagamento via Pix.\n Nossa *chave pix* é 04588776374')
+            .then(() => client.sendMessage(message.from,'Agora vou passar o resumo do seu pedido. OK?'));
+            pedido.troco = 0;
             pedido.estado = 'resumo'; // Passar para o próximo passo
         } else {
             message.reply('Desculpe, não entendi. Responda "Dinheiro" ou "Pix".');
@@ -193,6 +257,7 @@ client.on('message', (message) => {
         } else if (message.body.toLowerCase() === 'não') {
             pedido.troco = false;
             message.reply('Você não vai precisar de troco! Agora, vou passar o resumo do seu pedido. OK?');
+            pedido.troco = 0;
         } else {
             message.reply('Desculpe, não entendi. Responda "Sim" ou "Não".');
             return;
@@ -207,17 +272,27 @@ client.on('message', (message) => {
     }
     // Passar o resumo do pedido
     else if (pedido.estado === 'resumo') {
-        let total = pedido.quantidade * pedido.preco;
-        let mensagemResumo = `*RESUMO DO PEDIDO:*\n\n`;
-        mensagemResumo += `Tipo de água: ${pedido.tipoAgua}\n`;
-        mensagemResumo += `Quantidade: ${pedido.quantidade} garrafões de 20L\n`;
-        mensagemResumo += `Preço unitário: R$ ${pedido.preco}\n`;
-        mensagemResumo += `Total: R$ ${total}\n`;
-        mensagemResumo += `Nome: ${pedido.nome}\n`;
-        mensagemResumo += `Telefone: ${pedido.telefone}\n`;
-        mensagemResumo += `Endereço: ${pedido.endereco}\n`;
-        mensagemResumo += `Forma de pagamento: ${pedido.pagamento}\n`;
-        if (pedido.troco !== '') {
+        let total = pedido.quantidade * pedido.preco+pedido.taxa;
+        let mensagemResumo = `*📄RESUMO DO PEDIDO:*\n`;
+        mensagemResumo += `Tipo de água: _${pedido.tipoAgua}_\n`;
+        mensagemResumo += `Quantidade: _${pedido.quantidade} garrafões de 20L_\n`;
+        mensagemResumo += `Preço unitário: _R$ ${pedido.preco}_\n`;
+        if (pedido.taxa === 0) {
+            mensagemResumo += `Taxa de entrega: _*Grátis*_\n`;
+        } else{
+            mensagemResumo += `Taxa de entrega: _R$ ${pedido.taxa}_\n`
+        }
+        mensagemResumo += `*Total: _R$ ${total}_*\n`;
+        mensagemResumo += `*🚘 DADOS DE ENTREGA*\n`;
+        mensagemResumo += `Nome: _${pedido.nome}_\n`;
+        mensagemResumo += `Telefone: _${pedido.telefone}_\n`;
+        mensagemResumo += `Endereço: _${pedido.endereco}_\n`;
+        mensagemResumo += `Forma de pagamento: _${pedido.pagamento}_\n`;
+
+        if (pedido.troco === 0){
+            mensagemResumo += `Necessita de Troco: Não\n`
+            
+        } else{
             mensagemResumo += `Necessita de Troco: Sim, para ${pedido.troco}\n`;
         }
         message.reply(mensagemResumo)
@@ -225,7 +300,17 @@ client.on('message', (message) => {
 
         // Enviar Pedido para o contato pessoal do dono
         client.sendMessage('559192431116@c.us', `Novo Pedido✅ ${mensagemResumo}`);
-        delete pedidos[userId]; // Resetar o pedido para iniciar um novo atendimento
+        pedido = {
+            tipoAgua: '',
+            quantidade: 0,
+            nome: '',
+            telefone: '',
+            endereco: '',
+            pagamento: '',
+            taxa:0,
+            troco: '',
+            estado: ''  // Para controlar o estado do pedido
+        }; // Resetar o pedido para iniciar um novo atendimento
     }
 });
 
