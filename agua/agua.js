@@ -5,7 +5,6 @@ const axios = require('axios');
 const path = require('path');
 
 let clientsInProgress = {};  // Armazena o estado de cada cliente
-let clientTimers = {};  // Armazena os temporizadores para cada cliente
 
 // Cria uma nova instância do cliente
 const client = new Client({
@@ -75,9 +74,6 @@ client.on('message', (message) => {
                 estado: 'iniciar' }; // Inicia no estágio 1
             message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
                 .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?'));
-             // Inicia o pedido
-            // Inicia o temporizador de 5 minutos
-            startInactivityTimer(message.from);
         } else {
             // Verifica o estado do cliente e responde de acordo
             handleClientResponse(client, message);
@@ -301,30 +297,6 @@ async function handleClientResponse(client, message) {
     }
 }
 
-
-// Função para iniciar o temporizador de inatividade (5 minutos)
-function startInactivityTimer(clientId) {
-    clientTimers[clientId] = setTimeout(() => {
-        // Se não houver interação por 5 minutos, reinicia o atendimento
-        console.log(`Cliente ${clientId} inativo por 5 minutos. Reiniciando atendimento...`);
-        resetClientState(clientId);
-    }, 10 * 60 * 1000); // 5 minutos
-}
-
-// Função para resetar o temporizador de inatividade (sempre que o cliente interagir)
-function resetInactivityTimer(clientId) {
-    if (clientTimers[clientId]) {
-        clearTimeout(clientTimers[clientId]);  // Limpa o temporizador anterior
-        startInactivityTimer(clientId);  // Inicia um novo temporizador
-    }
-}
-
-// Função para reiniciar o estado do cliente
-function resetClientState(clientId) {
-    if (clientsInProgress[clientId]) {
-        delete clientsInProgress[clientId];  // Reinicia o estado do cliente
-    }
-}
 
 // Iniciar o cliente
 client.initialize();
