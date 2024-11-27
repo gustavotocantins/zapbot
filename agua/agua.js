@@ -59,7 +59,7 @@ async function getBairro(latitude, longitude) {
 function isWithinWorkingHours() {
     const now = new Date();
     const currentHour = now.getHours();
-    return currentHour >= 23 && currentHour < 8;  // Horário entre 8h e 18h
+    return currentHour >= 8 && currentHour < 18;  // Horário entre 8h e 18h
 }
 
 // Quando uma nova mensagem for recebida
@@ -69,7 +69,7 @@ client.on('message', (message) => {
         console.log(message.body);
 
         if (!clientsInProgress[message.from]) {
-            if (false && !isWithinWorkingHours()) {
+            if (!isWithinWorkingHours()) {
                 message.reply('Desculpe, nosso horário de atendimento é das 8h às 18h. Por favor, entre em contato novamente mais tarde.');
                 delete clientsInProgress[message.from];
                 return;
