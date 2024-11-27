@@ -5,6 +5,7 @@ const axios = require('axios');
 const path = require('path');
 
 let clientsInProgress = {};  // Armazena o estado de cada cliente
+let clientTimers = {};  // Armazena os temporizadores para cada cliente
 
 // Cria uma nova instância do cliente
 const client = new Client({
@@ -55,6 +56,12 @@ async function getBairro(latitude, longitude) {
     }
 }
 
+function isWithinWorkingHours() {
+    const now = new Date();
+    const currentHour = now.getHours();
+    return currentHour >= 23 && currentHour < 8;  // Horário entre 8h e 18h
+}
+
 // Quando uma nova mensagem for recebida
 client.on('message', (message) => {
     // Verifica se a mensagem foi enviada em um chat privado
@@ -62,6 +69,11 @@ client.on('message', (message) => {
         console.log(message.body);
 
         if (!clientsInProgress[message.from]) {
+            if (false && !isWithinWorkingHours()) {
+                message.reply('Desculpe, nosso horário de atendimento é das 8h às 18h. Por favor, entre em contato novamente mais tarde.');
+                delete clientsInProgress[message.from];
+                return;
+            }
             // Marca o cliente como em atendimento e envia a mensagem de boas-vindas
             clientsInProgress[message.from] = {tipoAgua: '',
                 quantidade: 0,
@@ -73,7 +85,10 @@ client.on('message', (message) => {
                 troco: '',
                 estado: 'iniciar' }; // Inicia no estágio 1
             message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
-                .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?'));
+                .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?\nResponda: *Sim* ou *Não*'));
+             // Inicia o pedido
+            // Inicia o temporizador de 5 minutos
+            startInactivityTimer(message.from);
         } else {
             // Verifica o estado do cliente e responde de acordo
             handleClientResponse(client, message);
@@ -98,16 +113,33 @@ const TermosConfirmo = [
 ];
 const Confirmo = new RegExp(`\\b(${TermosConfirmo.join('|')})\\b`, 'i');
 const numerosPorExtenso = {
-    'um': 1,
-    'uma': 1,
-    'dois': 2,
-    'duas': 2,
-    'três': 3,
-    'tres': 3
+    'um': 1,'seis':6,'4':4,
+    'uma': 1,'sete':7,'5':5,
+    'dois': 2,'oito':8,'6':6,
+    'duas': 2,'nove':9,'7':7,
+    'três': 3,'dez':10,'8':8,
+    'tres': 3,'1':1,'9':9,
+    'quatro':4,'2':2,'10':10,
+    'cinco':5,'3':3,'11':11,
 };
+const numeroTipo = {
+    'um': 1,
+    'dois': 2,
+    'três': 3,
+    'tres': 3,
+    '10':1,
+    '12':2,
+    '15':3,
+    'nossa agua':1,
+    'agua cristal':2,
+    'indaia':3
+  };
 // Função para gerenciar a resposta do cliente
 async function handleClientResponse(client, message) {
     const pedido = clientsInProgress[message.from];
+
+    // Reinicia o temporizador sempre que o cliente interage
+    resetInactivityTimer(message.from);
     // Quando o cliente enviar "Oi", "Olá" ou qualquer saudação
 
     // Se o cliente responder "Sim" ou "Não"
@@ -120,20 +152,30 @@ async function handleClientResponse(client, message) {
 
     else if (message.body.toLowerCase() === 'não' && pedido.estado === 'iniciar') {
         message.reply('Poxa, que pena que não vai precisar de água. Mas qualquer coisa, estamos aqui. Desde já, agradecemos o contato!');
-        pedido.estado = ''; // Resetar o estado
+        delete clientsInProgress[clientId]; // Resetar o estado
     }
 
     // Se o cliente escolheu a marca da água
     else if (pedido.estado === 'escolherMarca') {
         let escolha = message.body.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, '').trim();
-    
+        console.log('escolha');
+        const palavrasChave = Object.keys(numeroTipo);
+        const regex = new RegExp(`\\b(${palavrasChave.join('|')})\\b`, 'gi');
+        const encontrados = escolha.match(regex);
+        console.log(encontrados[0]);
+        console.log('Encontrados');
+        let escolhaNumero
+        try{
+            escolhaNumero = parseInt(numeroTipo[encontrados[0]]);
+        }catch{
+            escolhaNumero = NaN;
+        }
     // Tentar converter escolha para número (exemplo: "um", "uma", "dois")
-        let escolhaNumero = numerosPorExtenso[escolha] || parseInt(escolha);
-
+       
         if (escolhaNumero >= 1 && escolhaNumero <= aguas.length) {
         pedido.tipoAgua = aguas[escolhaNumero - 1].nome;
         pedido.preco = aguas[escolhaNumero - 1].preco;
-        message.reply(`Você escolheu ${pedido.tipoAgua}. Quantos garrafões de 20 litros você gostaria de pedir?`);
+        message.reply(`${pedido.tipoAgua} Quantas unidades de 20 litros você gostaria de pedir?`);
         pedido.estado = 'quantidade'; // Passar para o próximo passo
      }  else {
         const aguaEscolhida = aguas.find(agua =>
@@ -143,7 +185,7 @@ async function handleClientResponse(client, message) {
         if (aguaEscolhida) {
             pedido.tipoAgua = aguaEscolhida.nome;
             pedido.preco = aguaEscolhida.preco;
-            message.reply(`Você escolheu ${pedido.tipoAgua}. Quantos garrafões de 20 litros você gostaria de pedir?`);
+            message.reply(`${pedido.tipoAgua} Quantas *unidades* de 20 litros você gostaria de pedir?`);
             pedido.estado = 'quantidade'; // Passar para o próximo passo
         } else {
             message.reply('Escolha inválida. Por favor, escolha um número de 1 a 3 ou digite o nome do tipo de água.');
@@ -155,10 +197,17 @@ async function handleClientResponse(client, message) {
     else if (pedido.estado === 'quantidade') {
         let entrada = message.body.toLowerCase().trim();
         entrada = entrada.normalize("NFD").replace(/[\u0300-\u036f]/g, ''); // Remover acentos
-    
+        const palavrasChave = Object.keys(numerosPorExtenso);
+        const regex = new RegExp(`\\b(${palavrasChave.join('|')})\\b`, 'gi');
+        const encontrados = entrada.match(regex);
+        let quantidade
         // Tentar converter entrada para número
-        let quantidade = numerosPorExtenso[entrada] || parseInt(entrada);
-    
+        try{
+            quantidade = parseInt(numerosPorExtenso[encontrados[0]]);
+        }catch{
+            quantidade = NaN
+        }
+        
         if (isNaN(quantidade) || quantidade <= 0) {
             message.reply('Por favor, forneça uma quantidade válida de garrafões.');
         } else {
@@ -221,11 +270,16 @@ async function handleClientResponse(client, message) {
     }
     // Receber a forma de pagamento
     else if (pedido.estado === 'pagamento') {
-        if (message.body.toLowerCase() === 'dinheiro') {
+        var_dinheiro = ['dinheiro','real','grana','fisico'];
+        pix_val = ['pix'];
+        const dinheiro = new RegExp(`\\b(${var_dinheiro.join('|')})\\b`, 'i');
+        const pix = new RegExp(`\\b(${pix_val.join('|')})\\b`, 'i');
+        
+        if (dinheiro.test(message.body.toLowerCase())) {
             pedido.pagamento = 'Dinheiro';
             message.reply('Você escolheu pagamento em dinheiro. Precisa de troco?');
             pedido.estado = 'troco'; // Passar para o próximo passo
-        } else if (message.body.toLowerCase() === 'pix') {
+        } else if (dinheiro.test(message.body.toLowerCase())) {
             pedido.pagamento = 'Pix';
             message.reply('Você escolheu pagamento via Pix.\n Nossa *chave pix* é 04588776374')
             .then(() => client.sendMessage(message.from,'Agora vou passar o resumo do seu pedido. OK?'));
@@ -294,6 +348,30 @@ async function handleClientResponse(client, message) {
     }
 }
 
+
+// Função para iniciar o temporizador de inatividade (5 minutos)
+function startInactivityTimer(clientId) {
+    clientTimers[clientId] = setTimeout(() => {
+        // Se não houver interação por 5 minutos, reinicia o atendimento
+        console.log(`Cliente ${clientId} inativo por 5 minutos. Reiniciando atendimento...`);
+        resetClientState(clientId);
+    }, 5 * 60 * 1000); // 5 minutos
+}
+
+// Função para resetar o temporizador de inatividade (sempre que o cliente interagir)
+function resetInactivityTimer(clientId) {
+    if (clientTimers[clientId]) {
+        clearTimeout(clientTimers[clientId]);  // Limpa o temporizador anterior
+        startInactivityTimer(clientId);  // Inicia um novo temporizador
+    }
+}
+
+// Função para reiniciar o estado do cliente
+function resetClientState(clientId) {
+    if (clientsInProgress[clientId]) {
+        delete clientsInProgress[clientId];  // Reinicia o estado do cliente
+    }
+}
 
 // Iniciar o cliente
 client.initialize();
