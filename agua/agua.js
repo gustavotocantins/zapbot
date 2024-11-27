@@ -175,7 +175,7 @@ async function handleClientResponse(client, message) {
         if (escolhaNumero >= 1 && escolhaNumero <= aguas.length) {
         pedido.tipoAgua = aguas[escolhaNumero - 1].nome;
         pedido.preco = aguas[escolhaNumero - 1].preco;
-        message.reply(`${pedido.tipoAgua} Quantas unidades de 20 litros você gostaria de pedir?`);
+        message.reply(`Quantas unidades de 20 litros você gostaria de pedir?`);
         pedido.estado = 'quantidade'; // Passar para o próximo passo
      }  else {
         const aguaEscolhida = aguas.find(agua =>
@@ -185,7 +185,7 @@ async function handleClientResponse(client, message) {
         if (aguaEscolhida) {
             pedido.tipoAgua = aguaEscolhida.nome;
             pedido.preco = aguaEscolhida.preco;
-            message.reply(`${pedido.tipoAgua} Quantas *unidades* de 20 litros você gostaria de pedir?`);
+            message.reply(`Quantas *unidades* de 20 litros você gostaria de pedir?`);
             pedido.estado = 'quantidade'; // Passar para o próximo passo
         } else {
             message.reply('Escolha inválida. Por favor, escolha um número de 1 a 3 ou digite o nome do tipo de água.');
