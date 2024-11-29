@@ -4,7 +4,7 @@ const fs = require('fs');  // Para manipulação de arquivos
 const axios = require('axios');
 const path = require('path');
 const { pseudoRandomBytes } = require('crypto');
-
+//Nome e seu telefone e Número de protocolo é:
 let clientsInProgress = {};  // Armazena o estado de cada cliente
 let clientTimers = {};  // Armazena os temporizadores para cada cliente
 
@@ -16,6 +16,10 @@ const client = new Client({
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     }, 
 });
+
+function gerarProtocolo() {
+    return Math.floor(1000 + Math.random() * 9000); // Gera número entre 1000 e 9999
+}
 
 // Gera o QR code para login no WhatsApp Web
 client.on('qr', (qr) => {
@@ -103,9 +107,9 @@ const CarrosDisponiveis = [
     {tipo: 'Sedan', marca: 'Toyota',modelo: 'Corolla',ano:2020, preco: 75000,id:'tc01.jpg', descritivo:"Quilometragem: 105000\nPotência do motor: 2.0 - 2.9\nCombustível: Flex\nCâmbio: Automático\nCor: Cinza\nPortas: 4 portas"},
     {tipo: 'Sedan', marca: 'Honda',modelo: 'Civic',ano:2019, preco: 85000,id:'sh01.jpg',descritivo:""},
     {tipo: 'Sedan', marca: 'Chevrolet',modelo: 'Cruze',ano:2018, preco: 80000,id:'sc01.jpg',descritivo:""},
-    {tipo: 'SUV', marca: 'Jeep',modelo: 'Compass', ano:2021,preco: 150000,id:'suj01.jpeg',descritivo:""},
-    {tipo: 'SUV', marca: 'Hyundai',modelo: 'Creta', ano:2020,preco: 120000,id:'suh01.jpeg',descritivo:""},
-    {tipo: 'SUV', marca: 'Chevrolet',modelo: 'tracker', ano:2022,preco: 110000,id:'suc01.jpg',descritivo:""},
+    {tipo: 'SUV', marca: 'Jeep',modelo: 'Compass', ano:2021,preco: 90000,id:'suj01.jpeg',descritivo:""},
+    {tipo: 'SUV', marca: 'Hyundai',modelo: 'Creta', ano:2020,preco: 85000,id:'suh01.jpeg',descritivo:""},
+    {tipo: 'SUV', marca: 'Chevrolet',modelo: 'tracker', ano:2022,preco: 82000,id:'suc01.jpg',descritivo:""},
     {tipo: 'Hatch', marca: 'Nissan',modelo: 'March',ano:2017, preco: 48000,id:'hn01.jpeg',descritivo:""},
     {tipo: 'Hatch', marca: 'Peugeot',modelo: '208',ano:2021, preco: 72000,id:'hp01.jpeg',descritivo:""},
     {tipo: 'Hatch', marca: 'Fiat',modelo: 'Argo',ano:2020, preco: 55000,id:'hf01.jpg',descritivo:""},
@@ -128,12 +132,14 @@ const TermosAtedente = [
                 'atendente','vendedor','cinco','5'];
 const TermosFinanciamento = [
                     'simular','financiamento','2','dois'];
+
 const ConfirmoFinanciamento = new RegExp(`\\b(${TermosFinanciamento.join('|')})\\b`, 'i');
 const ConfirmoAtendente = new RegExp(`\\b(${TermosAtedente.join('|')})\\b`, 'i');
 const Confirmo = new RegExp(`\\b(${TermosOK.join('|')})\\b`, 'i');
 const ConfirmoAgendar = new RegExp(`\\b(${TermosAgendar.join('|')})\\b`, 'i');
 const ConfirmoVeiculos = new RegExp(`\\b(${TermosConfirmo.join('|')})\\b`, 'i');
 const ConfirmoAvaliacao = new RegExp(`\\b(${TermosAvaliacao.join('|')})\\b`, 'i');
+
 async function handleClientResponse(client, message) {
     const pedido = clientsInProgress[message.from];
     resetInactivityTimer(message.from);
@@ -274,14 +280,25 @@ async function handleClientResponse(client, message) {
     } else if (pedido.estado === 'escolher_dia') {
         // Salva o dia escolhido
         pedido.TestDrive.dia = message.body;
-        pedido.estado = 'escolher_horario';
+        pedido.estado = 'escolher_nome';
         client.sendMessage(message.from, "Qual o *horário* que você gostaria de realizar o test-drive?");
-        
+    } else if (pedido.estado === 'escolher_nome') {
+        // Salva o dia escolhido
+        pedido.TestDrive.dia = message.body;
+        pedido.estado = 'escolher_numero_contato';
+        client.sendMessage(message.from, "Estamos finalizando, me diga seu *nome*, por favor!");
+    } else if (pedido.estado === 'escolher_numero_contato') {
+        // Salva o dia escolhido
+        pedido.TestDrive.dia = message.body;
+        pedido.estado = 'escolher_horario';
+        client.sendMessage(message.from, "Qual seu *número de telefone* para contato?");
+    
     } else if (pedido.estado === 'escolher_horario') {
         // Salva o horário escolhido
         pedido.TestDrive.horario = message.body;
         pedido.estado = 'finalizar_test_drive';
-        client.sendMessage(message.from, `Perfeito! Seu agendamento foi feito para o carro *${pedido.TestDrive.carro}* no dia *${pedido.TestDrive.dia}* às *${pedido.TestDrive.horario}*.`);
+        const protocolo = gerarProtocolo();
+        client.sendMessage(message.from, `Perfeito! Seu agendamento foi feito para o carro *${pedido.TestDrive.carro}* no dia *${pedido.TestDrive.dia}* às *${pedido.TestDrive.horario}*.\n_Número de protocolo: ${protocolo}_`);
         client.sendMessage(message.from, "Nossa equipe vai verificar a disponibilidade e entrará em contato com você para confirmar. Estamos muito felizes em participar dessa experiência com você. 😊");
     
         // Reseta o estado do pedido
@@ -345,13 +362,22 @@ async function handleClientResponse(client, message) {
             }
             if (pedido.Avaliacao.fotos.length > 4) {
                 client.sendMessage(message.from, `Etapa *concluída!* ✅`)
-                .then(() => client.sendMessage(message.from,`Recebemos suas informações e fotos. Nossa *equipe* fará a *avaliação* e entrará em *contato com você* em breve.`));
-                pedido.Avaliacao = {}
-                pedido.estado = 'reiniciar';
+                .then(() => client.sendMessage(message.from,'Para finalizar me diga *seu nome*:'));
+                pedido.estado = 'avaliacao_telefone';
             }
         } else {
             client.sendMessage(message.from, `Por favor, envie as fotos do carro.`);
         }
+    }else if(pedido.estado === 'avaliacao_concluido'){
+        const protocolo = gerarProtocolo();
+        client.sendMessage(message.from, `Recebemos suas informações e fotos. Nossa *equipe* fará a *avaliação* e entrará em *contato com você* em breve.\n_Número de protocolo: ${protocolo}_`);
+        pedido.estado = 'reiniciar';
+        pedido.Avaliacao = {};
+    }else if(pedido.estado==='avaliacao_telefone'){
+        client.sendMessage(message.from, `Por fim, me diga seu *número para contato:*`);
+        pedido.estado = 'avaliacao_concluido';
+        //
+        //
     }else if (pedido.estado === 'definirOrcamento') {
         const orcamento = parseFloat(message.body.replace(/[^\d.]/g, '')); // Extrai apenas números do input
     
