@@ -27,6 +27,18 @@ client.on('qr', (qr) => {
     console.log('Escaneie o QR Code para autenticar no WhatsApp');
 });
 
+function saudacaoPorHora() {
+    const horaAtual = new Date().getHours(); // Obtém a hora atual
+    
+    if (horaAtual >= 6 && horaAtual < 12) {
+        return "Bom dia!";
+    } else if (horaAtual >= 12 && horaAtual < 18) {
+        return "Boa tarde!";
+    } else {
+        return "Boa noite!";
+    }
+}
+
 // Quando o cliente estiver pronto para enviar e receber mensagens
 client.on('ready', () => {
     console.log('O bot está pronto para enviar e receber mensagens!');
@@ -91,11 +103,11 @@ client.on('message', (message) => {
                 nome: '',
                 endereço: '',
                 taxa:0,
-                estado: 'iniciar' };
+                estado: 'nome' };
             //const name = contact.pushname || "tudo bem?";${name}
-            message.reply(`Olá! Bem-vindo à *Center Carros.* Como posso ajudar hoje?\n_Escolha uma das opções:_`)
-                .then(() => client.sendMessage(message.from,'1️⃣ Ver veículos disponíveis\n2️⃣ Simular financiamento\n3️⃣ Agendar test-drive\n4️⃣ Avaliar meu veículo para troca\n5️⃣ Falar com um vendedor'));
-            startInactivityTimer(message.from);
+            message.reply(`${saudacaoPorHora()} Bem-vindo à *Center Carros!* Estamos prontos para ajudá-lo a *encontrar* o carro perfeito. 🚗✨`)
+                .then(() => client.sendMessage(message.from,'Poderia nos informar *seu nome,* por favor:'));
+            
         } else {
             // Verifica o estado do cliente e responde de acordo
             handleClientResponse(client, message);
@@ -117,7 +129,8 @@ const CarrosDisponiveis = [
 ];
 
 const TermosConfirmo = [
-    'ver veiculos','ver veículos','1','um','primeiro','disponíveis','disponiveis','um','1'
+    'ver veiculos','ver veículos','1','um','primeiro','disponíveis','disponiveis','um','1','disponível',
+    'disponivel'
 ];
 
 const TermosAvaliacao = [
@@ -133,6 +146,11 @@ const TermosAtedente = [
 const TermosFinanciamento = [
                     'simular','financiamento','2','dois'];
 
+const CancelarNao = [
+                        'não','voltar','sair','cancelar'];
+    
+
+const cancelar = new RegExp(`\\b(${CancelarNao.join('|')})\\b`, 'i');
 const ConfirmoFinanciamento = new RegExp(`\\b(${TermosFinanciamento.join('|')})\\b`, 'i');
 const ConfirmoAtendente = new RegExp(`\\b(${TermosAtedente.join('|')})\\b`, 'i');
 const Confirmo = new RegExp(`\\b(${TermosOK.join('|')})\\b`, 'i');
@@ -148,16 +166,31 @@ async function handleClientResponse(client, message) {
             message.from,
             `Vamos começar! Qual o *valor máximo* que você gostaria de pagar no carro?\n_Digite um valor numérico._`);
         pedido.estado = "definirOrcamento";
-    
+    }else if(pedido.estado === 'nome'){
+        pedido.nome = message.body;
+        message.reply(`Muito bom ter você aqui, ${pedido.nome}! Escolha uma das opções abaixo para melhor atendê-lo.`)
+                .then(() => client.sendMessage(message.from,'1️⃣ Ver veículos disponíveis\n2️⃣ Simular financiamento\n3️⃣ Agendar test-drive\n4️⃣ Avaliar meu veículo para troca\n5️⃣ Falar com um vendedor'));
+        
+        pedido.estado = 'iniciar';
     } else if (pedido.estado === 'iniciar' && ConfirmoFinanciamento.test(message.body.toLowerCase())) {
         // Inicia o fluxo de simulação de financiamento
         pedido.estado = 'simulacao_financiamento';
         client.sendMessage(
             message.from,
-            "Vamos começar a *simulação do financiamento* de veículo."
+            "Vamos começar a *simulação do financiamento* do seu veículo."
         ).then(() => client.sendMessage(message.from,`Por favor, informe o *valor do financiamento* desejado (apenas números).`));
     } else if (pedido.estado === 'simulacao_financiamento') {
-        const valorFinanciado = parseFloat(message.body);
+        let valorEntrada = message.body.toLowerCase().replace(',', '.'); // Substitui vírgula por ponto
+        let valorFinanciado;
+    
+        // Verifica se a mensagem contém "mil" e processa adequadamente
+        if (valorEntrada.includes('mil')) {
+            const numeros = parseFloat(valorEntrada.replace('mil', '').trim()); // Remove "mil" e converte para número
+            valorFinanciado = numeros * 1000; // Multiplica por 1000
+        } else {
+            valorFinanciado = parseFloat(valorEntrada); // Converte diretamente
+        }
+    
         if (isNaN(valorFinanciado) || valorFinanciado <= 0) {
             client.sendMessage(
                 message.from,
@@ -254,13 +287,34 @@ async function handleClientResponse(client, message) {
                 `Registro de Contrato: _${registroContrato.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}_\n` +
                 `Seguro de Proteção Financeira: _${seguroProtecaoFinanceira.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}_\n` +
                 `*Valor Total do Financiamento: _${valorTotalFinanciamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}_*`
-            );
-    
-            pedido.estado = 'reiniciar';
-            client.sendMessage(
-                message.from,
-                "Simulação concluída! Se precisar de mais ajuda, estou à disposição. 😊"
-            );
+            ).then(() => {
+                client.sendMessage(message.from, "Simulação concluída! você gostaria de falar com o nosso atendimento?\n_Responda: Sim ou Não_😊")
+            });
+
+            pedido.estado = 'gostousimulacao';
+        }
+    } else if (pedido.estado === 'gostousimulacao') {
+        if (!cancelar.test(message.body.toLowerCase())) {
+            client.sendMessage(message.from, 'Ótima! Estamos *lhe encaminhando* para nosso time de atendimento.')
+                .then(() => {
+                    pedido.estado = 'reiniciar';
+                });
+        } else {
+            client.sendMessage(message.from, 'Você gostaria de falar com alguém do *nosso time?*')
+                .then(() => {
+                    client.sendMessage(message.from, 'Podemos verificar se temos uma opção que mais combina com você!\nResponda *"sim"* ou *"não"*')
+                });
+                pedido.estado = 'verificarAtendimentoSimulacao';
+        }
+    } else if (pedido.estado === 'verificarAtendimentoSimulacao') {
+        if (!cancelar.test(message.body.toLowerCase())) {
+            client.sendMessage(message.from, 'Ok! Estamos *encaminhando* você para o nosso atendimento humano.')
+                .then(() => {
+                    pedido.estado = 'reiniciar';
+                });
+        } else {
+            client.sendMessage(message.from, 'Tudo bem! Caso precise de algo, estamos à disposição. Obrigado pelo contato!');
+            delete clientsInProgress[message.from];
         }
     } else if (pedido.estado === 'iniciar' && ConfirmoAgendar.test(message.body.toLowerCase())) {
         // Inicia o fluxo de agendamento de test-drive
@@ -378,8 +432,20 @@ async function handleClientResponse(client, message) {
         pedido.estado = 'avaliacao_concluido';
         //
         //
-    }else if (pedido.estado === 'definirOrcamento') {
-        const orcamento = parseFloat(message.body.replace(/[^\d.]/g, '')); // Extrai apenas números do input
+    } else if (pedido.estado === 'definirOrcamento') {
+        const interpretarValor = (entrada) => {
+            entrada = entrada.toLowerCase(); // Converte tudo para minúsculo
+            if (entrada.includes('mil')) {
+                // Substitui "mil" por 1000, tratando números antes de "mil"
+                const partes = entrada.split('mil');
+                const numeroAntesDeMil = parseFloat(partes[0].replace(',', '.').trim()) || 1; // Se não houver número antes, considera 1
+                return numeroAntesDeMil * 1000;
+            }
+            // Caso não inclua "mil", tenta converter diretamente
+            return parseFloat(entrada.replace(/[^\d.]/g, ''));
+        };
+    
+        const orcamento = interpretarValor(message.body); // Interpreta o valor do orçamento
     
         if (isNaN(orcamento) || orcamento <= 0) {
             client.sendMessage(
@@ -388,6 +454,7 @@ async function handleClientResponse(client, message) {
             );
         } else {
             pedido.QuerPagar = orcamento;
+    
             // Filtrar os tipos de carro que possuem valores dentro do orçamento
             const tiposDisponiveis = [...new Set(
                 CarrosDisponiveis.filter(carro => carro.preco <= orcamento)
@@ -409,8 +476,7 @@ async function handleClientResponse(client, message) {
                 );
             }
         }
-    
-    } else if (pedido.estado === 'escolhertipo') {
+    }else if (pedido.estado === 'escolhertipo') {
         const tipoSelecionado = message.body.toLowerCase();
     
         // Verificar se o tipo está disponível no orçamento
@@ -456,7 +522,7 @@ async function handleClientResponse(client, message) {
         } else {
             client.sendMessage(message.from, `Tipo inválido. Por favor, digite o número ou o nome do tipo que deseja.`);
         };
-    }else if (pedido.estado === 'mostrar') {
+    } else if (pedido.estado === 'mostrar') {
         // Função para filtrar os carros disponíveis
         function filtrarCarros({
             tipo = null, 
@@ -469,11 +535,12 @@ async function handleClientResponse(client, message) {
             return CarrosDisponiveis.filter(carro => {
                 const tipoValido = !tipo || carro.tipo.toLowerCase() === tipo.toLowerCase();
                 const marcaValida = !marca || carro.marca.toLowerCase() === marca.toLowerCase();
+                const modeloValido = !modelo || carro.modelo.toLowerCase() === modelo.toLowerCase();
                 const anoValido = !ano || carro.ano === ano;
                 const precoMaiorValido = !precoMaiorQue || carro.preco >= precoMaiorQue;
                 const precoMenorValido = !precoMenorQue || carro.preco <= precoMenorQue;
     
-                return tipoValido && marcaValida && anoValido && precoMaiorValido && precoMenorValido;
+                return tipoValido && marcaValida && modeloValido && anoValido && precoMaiorValido && precoMenorValido;
             });
         }
     
@@ -482,36 +549,69 @@ async function handleClientResponse(client, message) {
             tipo: pedido.TipoCarro,
             precoMenorQue: pedido.QuerPagar
         });
-
+    
         if (carros.length > 0) {
             // Enviar mensagem com os carros disponíveis
-            client.sendMessage(message.from, `Aqui estão os *carros disponíveis* com base na sua escolha:\n`).then(() => carros.forEach(carro => {
-                const imagePath = `./carros/${carro.id}`;  // Caminho do arquivo de imagem
-                const media = MessageMedia.fromFilePath(imagePath);  // Cria a mídia a partir do caminho do arquivo
-
-                // Envia a imagem para o WhatsApp
-                client.sendMessage(message.from, media, { caption: `🚗 *${carro.marca} ${carro.modelo}*\n*Ano:* ${carro.ano}\n*Preço:* R$${carro.preco.toLocaleString('pt-BR')}\n${carro.descritivo || "Sem descrição disponível."}`});
-            }));
-            
-            
+            client.sendMessage(message.from, `Aqui estão os *carros disponíveis* com base na sua escolha:\n`)
+                .then(() => {
+                    // Criar uma lista de Promises para o envio das imagens
+                    const envioCarros = carros.map(carro => {
+                        const imagePath = `./carros/${carro.id}`; // Caminho do arquivo de imagem
+                        const media = MessageMedia.fromFilePath(imagePath); // Cria a mídia a partir do caminho do arquivo
+    
+                        // Retorna a Promise do envio da mensagem
+                        return client.sendMessage(message.from, media, {
+                            caption: `🚗 *${carro.marca} ${carro.modelo}*\n*Ano:* ${carro.ano}\n*Preço:* R$${carro.preco.toLocaleString('pt-BR')}\n${carro.descritivo || "Sem descrição disponível."}`
+                        });
+                    });
+    
+                    // Aguarda que todos os envios sejam concluídos
+                    return Promise.all(envioCarros);
+                })
+                .then(() => {
+                    // Envia a mensagem final após todos os carros terem sido enviados
+                    client.sendMessage(message.from, 'Você *gostou* de algum modelo? Se sim, digite o nome do carro:');
+                    pedido.estado = 'gostoucarro';
+                })
+                .catch(error => {
+                    console.error('Erro ao enviar mensagens:', error);
+                });
         } else {
-            // Caso nenhum carro atenda aos critérios, exibir mensagem
-            client.sendMessage(
-                message.from,
-                `Infelizmente, não encontramos carros disponíveis com base nas suas preferências e orçamento. Por favor, tente ajustar suas escolhas.`
-            );
+            client.sendMessage(message.from, 'Não há carros disponíveis com base na sua escolha.');
         }
-        
-        // Finaliza o pedido ou redefine o estado, conforme necessário
-        pedido.estado = 'reiniciar';
-    }else if (message.body.toLowerCase() === 'não' && pedido.estado === 'iniciar') {
+    } else if (pedido.estado === 'gostoucarro') {
+        if (!cancelar.test(message.body.toLowerCase())) {
+            client.sendMessage(message.from, 'Ótima escolha! Estamos *lhe encaminhando* para nosso time de atendimento.')
+                .then(() => {
+                    // Aqui você pode adicionar a lógica de redirecionamento para o atendimento
+                    pedido.estado = 'reiniciar';
+                });
+        } else {
+            client.sendMessage(message.from, 'Você gostaria de falar com alguém do *nosso time?*')
+                .then(() => {
+                    client.sendMessage(message.from, 'Podemos verificar se temos uma opção que mais combina com você!\nResponda *"sim"* ou *"não"*')
+                });
+                pedido.estado = 'verificarAtendimentoHumano';
+        }
+    } else if (pedido.estado === 'verificarAtendimentoHumano') {
+        if (!cancelar.test(message.body.toLowerCase())) {
+            client.sendMessage(message.from, 'Ok! Estamos *encaminhando* você para o nosso atendimento humano.')
+                .then(() => {
+                    pedido.estado = 'reiniciar';
+                });
+        } else {
+            client.sendMessage(message.from, 'Tudo bem! Caso precise de algo, estamos à disposição. Obrigado pelo contato!');
+            delete clientsInProgress[message.from];
+        }
+    } else if (message.body.toLowerCase() === 'não' && pedido.estado === 'iniciar') {
         message.reply('Poxa, que pena que não vai precisar. Mas qualquer coisa, estamos aqui. Desde já, agradecemos o contato!');
-        delete clientsInProgress[clientId]; // Resetar o estado
-    } else if (pedido.estado === 'reiniciar'){
+        delete clientsInProgress[message.from]; // Resetar o estado
+    } else if (pedido.estado === 'reiniciar') {
         message.reply(`O que você deseja fazer agora?`)
-                .then(() => client.sendMessage(message.from,'1️⃣ Ver veículos disponíveis\n2️⃣ Simular financiamento\n3️⃣ Agendar test-drive\n4️⃣ Avaliar meu veículo para troca\n5️⃣ Falar com um vendedor'));
+            .then(() => client.sendMessage(message.from,'1️⃣ Ver veículos disponíveis\n2️⃣ Simular financiamento\n3️⃣ Agendar test-drive\n4️⃣ Avaliar meu veículo para troca\n5️⃣ Falar com um vendedor'));
         pedido.estado = 'iniciar';
     }
+    
 
 // Função para iniciar o temporizador de inatividade (5 minutos)
 function startInactivityTimer(clientId) {
@@ -519,7 +619,7 @@ function startInactivityTimer(clientId) {
         // Se não houver interação por 5 minutos, reinicia o atendimento
         console.log(`Cliente ${clientId} inativo por 5 minutos. Reiniciando atendimento...`);
         resetClientState(clientId);
-    }, 5 * 60 * 1000); // 5 minutos
+    }, 1 * 60 * 1000); // 5 minutos
 }
 }
 // Função para resetar o temporizador de inatividade (sempre que o cliente interagir)
