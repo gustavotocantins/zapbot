@@ -338,21 +338,21 @@ async function handleClientResponse(client, message) {
         client.sendMessage(message.from, "Qual o *horário* que você gostaria de realizar o test-drive?");
     } else if (pedido.estado === 'escolher_nome') {
         // Salva o dia escolhido
-        pedido.TestDrive.dia = message.body;
+        pedido.TestDrive.hora = message.body;
         pedido.estado = 'escolher_numero_contato';
         client.sendMessage(message.from, "Estamos finalizando, me diga seu *nome*, por favor!");
     } else if (pedido.estado === 'escolher_numero_contato') {
         // Salva o dia escolhido
-        pedido.TestDrive.dia = message.body;
+        pedido.TestDrive.nome = message.body;
         pedido.estado = 'escolher_horario';
         client.sendMessage(message.from, "Qual seu *número de telefone* para contato?");
     
     } else if (pedido.estado === 'escolher_horario') {
         // Salva o horário escolhido
-        pedido.TestDrive.horario = message.body;
+        pedido.TestDrive.telefone = message.body;
         pedido.estado = 'finalizar_test_drive';
         const protocolo = gerarProtocolo();
-        client.sendMessage(message.from, `Perfeito! Seu agendamento foi feito para o carro *${pedido.TestDrive.carro}* no dia *${pedido.TestDrive.dia}* às *${pedido.TestDrive.horario}*.\n_Número de protocolo: ${protocolo}_`);
+        client.sendMessage(message.from, `Perfeito, *${pedido.TestDrive.nome}*! Seu agendamento foi feito para o carro *${pedido.TestDrive.carro}* no dia *${pedido.TestDrive.dia}* às *${pedido.TestDrive.hora}*.\n_Número de protocolo: ${protocolo}_`);
         client.sendMessage(message.from, "Nossa equipe vai verificar a disponibilidade e entrará em contato com você para confirmar. Estamos muito felizes em participar dessa experiência com você. 😊");
     
         // Reseta o estado do pedido
