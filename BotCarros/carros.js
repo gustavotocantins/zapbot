@@ -601,7 +601,7 @@ async function handleClientResponse(client, message) {
         message.reply('Poxa, que pena que não vai precisar. Mas qualquer coisa, estamos aqui. Desde já, agradecemos o contato!');
         delete clientsInProgress[message.from]; // Resetar o estado
     } else if (pedido.estado === 'reiniciar') {
-        message.reply(`O que você deseja fazer agora?`)
+        message.reply(`${pedido.nome}, o que você deseja fazer agora?`)
             .then(() => client.sendMessage(message.from,'1️⃣ Ver veículos disponíveis\n2️⃣ Simular financiamento\n3️⃣ Agendar test-drive\n4️⃣ Avaliar meu veículo para troca\n5️⃣ Falar com um vendedor'));
         pedido.estado = 'iniciar';
     }
