@@ -93,6 +93,65 @@ app.get('/pedidos/abertos', async (req, res) => {
   }
 });
 
+// Rota para buscar todos os produtos no estoque
+app.get('/estoque', async (req, res) => {
+  const sql = 'SELECT id, nome, imagem, quantidade, created_at, updated_at FROM estoque';
+
+  try {
+    const [produtos] = await pool.execute(sql);
+    res.json({ produtos });
+  } catch (err) {
+    console.error('Erro ao buscar produtos:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar produtos' });
+  }
+});
+
+// Rota para atualizar a quantidade de um produto
+app.put('/estoque/:id', async (req, res) => {
+  const { id } = req.params;
+  const { quantidade } = req.body;
+
+  if (quantidade < 0) {
+    return res.status(400).json({ error: 'Quantidade não pode ser negativa' });
+  }
+
+  const sql = 'UPDATE estoque SET quantidade = ?, updated_at = NOW() WHERE id = ?';
+
+  try {
+    const [result] = await pool.execute(sql, [quantidade, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Produto não encontrado' });
+    }
+
+    res.json({ message: 'Quantidade atualizada com sucesso' });
+  } catch (err) {
+    console.error('Erro ao atualizar quantidade:', err.message);
+    res.status(500).json({ error: 'Erro ao atualizar produto' });
+  }
+});
+
+// Rota para buscar um produto específico (opcional)
+app.get('/estoque/:id', async (req, res) => {
+  const { id } = req.params;
+
+  const sql = 'SELECT id, nome, imagem, quantidade, created_at, updated_at FROM estoque WHERE id = ?';
+
+  try {
+    const [produtos] = await pool.execute(sql, [id]);
+
+    if (produtos.length === 0) {
+      return res.status(404).json({ error: 'Produto não encontrado' });
+    }
+
+    res.json({ produto: produtos[0] });
+  } catch (err) {
+    console.error('Erro ao buscar produto:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar produto' });
+  }
+});
+
+
 // Inicia o servidor
 app.listen(port, () => {
   console.log(`Servidor rodando em http://localhost:${port}`);
