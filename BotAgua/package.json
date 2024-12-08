@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@mercadopago/sdk-js": "^0.0.3",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "mercadopago": "^2.1.0",
+    "mysql2": "^3.11.5"
+  }
+}
