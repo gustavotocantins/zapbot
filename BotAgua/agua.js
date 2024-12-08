@@ -503,12 +503,14 @@ async function handleClientResponse(client, message) {
         mensagemResumo += `Telefone: _${message.from.split('@')[0]}_\n`;
         mensagemResumo += `Endereço: _${pedido.endereco}_\n`;
         mensagemResumo += `Forma de pagamento: _${pedido.pagamento}_\n`;
-
+	troco = "";
         if (pedido.troco === 0){
-            mensagemResumo += `Necessita de Troco: Não\n`
+            mensagemResumo += `Necessita de Troco: Não\n`;
+	    troco = "Troco: Não precisa";
             
         } else{
             mensagemResumo += `Necessita de Troco: Sim, para ${pedido.troco}\n`;
+		troco = `Troco: Sim, para ${pedido.troco}\n`;
         }
         message.reply(mensagemResumo)
         .then(() => client.sendMessage(message.from,'Seu pedido *foi concluído!✅* Entraremos em contato em breve para a entrega. Obrigado!'));
@@ -517,7 +519,7 @@ async function handleClientResponse(client, message) {
             local: `${pedido.bairro}`,
             valor: total,
             pagamento: pedido.pagamento,
-            descricao: `${pedido.quantidade}x ${pedido.tipoAgua}`,
+            descricao: `${pedido.quantidade}x ${pedido.tipoAgua}\nForma de pagamento: ${pedido.pagamento}\n${troco}\nBairro: ${pedido.bairro}\nEndereço: ${pedido.endereco}\nValor Total:${total}`,
             cliente: pedido.nome,
             whatsapp: message.from.split('@')[0]
           };
