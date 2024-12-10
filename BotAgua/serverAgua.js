@@ -158,6 +158,6 @@ app.get('/estoque/:id', async (req, res) => {
 
 
 // Inicia o servidor
-https.createServer(options, app).listen(443, () => {
-  console.log('Servidor HTTPS rodando na porta 443');
+https.createServer(options, app).listen(port, () => {
+  console.log('Servidor HTTPS rodando na porta 3001');
 });
