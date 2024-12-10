@@ -157,19 +157,19 @@ app.get('/cliente/:whatsapp', async (req, res) => {
 
 // Rota para cadastrar um novo cliente
 app.post('/cliente', async (req, res) => {
-  const { nome, whatsapp, endereco } = req.body;
+  const { nome, whatsapp, endereco, bairro } = req.body;
 
-  if (!nome || !whatsapp || !endereco) {
+  if (!nome || !whatsapp || !endereco || !bairro) {
     return res.status(400).json({ error: 'Nome, WhatsApp e endereço são obrigatórios' });
   }
 
-  const sql = 'INSERT INTO clientes (nome, whatsapp, endereco) VALUES (?, ?, ?)';
+  const sql = 'INSERT INTO clientes (nome, whatsapp, endereco,bairro) VALUES (?, ?, ?, ?)';
 
   try {
-    const [result] = await pool.execute(sql, [nome, whatsapp, endereco]);
+    const [result] = await pool.execute(sql, [nome, whatsapp, endereco,bairro]);
     res.status(201).json({
       message: 'Cliente cadastrado com sucesso',
-      cliente: { id: result.insertId, nome, whatsapp, endereco },
+      cliente: { id: result.insertId, nome, whatsapp, endereco,bairro },
     });
   } catch (err) {
     console.error('Erro ao cadastrar cliente:', err.message);
