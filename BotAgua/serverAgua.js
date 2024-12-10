@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const mysql = require('mysql2/promise'); // Use a versão de promise para facilitar o uso de async/await
-
+const https = require('https');
 const app = express();
 const port = 3001;
 
+const options = {
+  key: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/fullchain.pem'),
+};
 // Configuração do pool de conexões
 const pool = mysql.createPool({
   host: 'myboxclub.com.br',
@@ -153,6 +157,6 @@ app.get('/estoque/:id', async (req, res) => {
 
 
 // Inicia o servidor
-app.listen(port, () => {
-  console.log(`Servidor rodando em http://localhost:${port}`);
+https.createServer(options, app).listen(443, () => {
+  console.log('Servidor HTTPS rodando na porta 443');
 });
