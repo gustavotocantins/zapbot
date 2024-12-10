@@ -5,6 +5,7 @@ const https = require('https');
 const app = express();
 const port = 3001;
 const fs = require('fs');
+
 const options = {
   key: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/privkey.pem'),
   cert: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/fullchain.pem'),
@@ -159,4 +160,12 @@ app.get('/estoque/:id', async (req, res) => {
 // Inicia o servidor
 https.createServer(options, app).listen(443, () => {
   console.log('Servidor HTTPS rodando na porta 443');
+});
+const http = require('http');
+
+http.createServer((req, res) => {
+  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+  res.end();
+}).listen(80, () => {
+  console.log('Redirecionando para HTTPS');
 });
