@@ -7,8 +7,21 @@ const path = require('path');
 const { Payment, MercadoPagoConfig } = require("mercadopago");
 const clientPIX = new MercadoPagoConfig({ accessToken: 'APP_USR-7005128537550780-120100-27ba39bde39862bd3558b846cd618f5d-696187036', options: { timeout: 5000, idempotencyKey: 'abc' } });
 const bodyParser = require('body-parser');
+const https = require('https'); //COMANDO NOVO SSH
+const http = require('http');
+
+http.createServer((req, res) => {
+  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
+  res.end();
+}).listen(80, () => {
+  console.log('Redirecionando para HTTPS');
+});
 
 // Configurando o bot para enviar mensagem
+const options = {
+  key: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/privkey.pem'),
+  cert: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/fullchain.pem'),
+};
 
 // Configura o servidor Express
 const app = express();
@@ -45,8 +58,8 @@ app.get('/', (req, res) => {
 
 // Inicializa o servidor na porta 3000
 const PORT = 3010;
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+https.createServer(options, app).listen(PORT, () => {
+    console.log(`Servidor HTTPS rodando na porta ${PORT}`);
 });
 
 // Step 3: Initialize the API object
