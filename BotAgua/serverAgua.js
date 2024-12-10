@@ -136,6 +136,47 @@ app.put('/estoque/:id', async (req, res) => {
   }
 });
 
+app.get('/cliente/:whatsapp', async (req, res) => {
+  const { whatsapp } = req.params;
+
+  const sql = 'SELECT * FROM clientes WHERE whatsapp = ?';
+
+  try {
+    const [clientes] = await pool.execute(sql, [whatsapp]);
+
+    if (clientes.length === 0) {
+      return res.status(404).json({ error: 'Cliente não encontrado' });
+    }
+
+    res.json({ cliente: clientes[0] });
+  } catch (err) {
+    console.error('Erro ao buscar cliente:', err.message);
+    res.status(500).json({ error: 'Erro ao buscar cliente' });
+  }
+});
+
+// Rota para cadastrar um novo cliente
+app.post('/cliente', async (req, res) => {
+  const { nome, whatsapp, endereco } = req.body;
+
+  if (!nome || !whatsapp || !endereco) {
+    return res.status(400).json({ error: 'Nome, WhatsApp e endereço são obrigatórios' });
+  }
+
+  const sql = 'INSERT INTO clientes (nome, whatsapp, endereco) VALUES (?, ?, ?)';
+
+  try {
+    const [result] = await pool.execute(sql, [nome, whatsapp, endereco]);
+    res.status(201).json({
+      message: 'Cliente cadastrado com sucesso',
+      cliente: { id: result.insertId, nome, whatsapp, endereco },
+    });
+  } catch (err) {
+    console.error('Erro ao cadastrar cliente:', err.message);
+    res.status(500).json({ error: 'Erro ao cadastrar cliente' });
+  }
+});
+
 // Rota para buscar um produto específico (opcional)
 app.get('/estoque/:id', async (req, res) => {
   const { id } = req.params;
