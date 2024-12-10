@@ -186,7 +186,7 @@ client.on('message', (message) => {
                 taxa:0,
                 troco: '',
                 estado: 'iniciar' }; // Inicia no estágio 1
-            await client.sendMessage(message.from,'Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
+            client.sendMessage(message.from,'Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
                 .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?\nResponda: *Sim* ou *Não*'));
              // Inicia o pedido
             // Inicia o temporizador de 5 minutos
