@@ -4,7 +4,7 @@ const mysql = require('mysql2/promise'); // Use a versão de promise para facili
 const https = require('https');
 const app = express();
 const port = 3001;
-
+const fs = require('fs');
 const options = {
   key: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/privkey.pem'),
   cert: fs.readFileSync('/etc/letsencrypt/live/serveraquagas.shop/fullchain.pem'),
