@@ -8,14 +8,6 @@ const { Payment, MercadoPagoConfig } = require("mercadopago");
 const clientPIX = new MercadoPagoConfig({ accessToken: 'APP_USR-7005128537550780-120100-27ba39bde39862bd3558b846cd618f5d-696187036', options: { timeout: 5000, idempotencyKey: 'abc' } });
 const bodyParser = require('body-parser');
 const https = require('https'); //COMANDO NOVO SSH
-const http = require('http');
-
-http.createServer((req, res) => {
-  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
-  res.end();
-}).listen(80, () => {
-  console.log('Redirecionando para HTTPS');
-});
 
 // Configurando o bot para enviar mensagem
 const options = {
