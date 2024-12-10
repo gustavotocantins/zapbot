@@ -161,11 +161,3 @@ app.get('/estoque/:id', async (req, res) => {
 https.createServer(options, app).listen(443, () => {
   console.log('Servidor HTTPS rodando na porta 443');
 });
-const http = require('http');
-
-http.createServer((req, res) => {
-  res.writeHead(301, { Location: `https://${req.headers.host}${req.url}` });
-  res.end();
-}).listen(80, () => {
-  console.log('Redirecionando para HTTPS');
-});
