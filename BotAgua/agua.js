@@ -537,20 +537,20 @@ async function handleClientResponse(client, message) {
             whatsapp: message.from.split('@')[0]
           };
           
-          axios.post('http://localhost:3001/pedido', dadosPedido)
+          axios.post('https://serveraquagas.shop:3001/pedido', dadosPedido)
         .then(response => {
             console.log('Pedido adicionado com sucesso:', response.data);
 
             // Reduzir quantidade no estoque
             const produtoID = produtoIDs[pedido.tipoAgua];
             if (produtoID) {
-                axios.get(`http://localhost:3001/estoque/${produtoID}`)
+                axios.get(`https://serveraquagas.shop:3001/estoque/${produtoID}`)
                     .then(({ data }) => {
                         const novaQuantidade = data.produto.quantidade - pedido.quantidade;
 
                         // Atualizar estoque com a nova quantidade
                         if (novaQuantidade >= 0) {
-                            axios.put(`http://localhost:3001/estoque/${produtoID}`, { quantidade: novaQuantidade })
+                            axios.put(`https://serveraquagas.shop:3001/estoque/${produtoID}`, { quantidade: novaQuantidade })
                                 .then(() => console.log(`Estoque do produto ID ${produtoID} atualizado com sucesso.`))
                                 .catch(err => console.error('Erro ao atualizar estoque:', err.response ? err.response.data : err.message));
                         } else {
