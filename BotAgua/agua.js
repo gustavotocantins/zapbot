@@ -23,24 +23,33 @@ app.use(bodyParser.json()); // Para trabalhar com requisições JSON
 app.post('/enviar-mensagem', async (req, res) => {
     const { numero, mensagem } = req.body;
 
+    // Verificação de parâmetros obrigatórios
     if (!numero || !mensagem) {
-        return res.status(400).send({ error: 'Parâmetros "numero" e "mensagem" são obrigatórios!' });
+        console.warn('Requisição inválida: Parâmetros "numero" e/ou "mensagem" ausentes.');
+        return res.status(400).json({ 
+            error: 'Parâmetros "numero" e "mensagem" são obrigatórios!' 
+        });
     }
 
     try {
+        // Formata o número para o padrão correto
+        const numeroFormatado = `${numero.replace(/\D/g, '')}@c.us`;
+
         // Envia a mensagem para o número especificado
-        await client.sendMessage(
-            `${numero}@c.us`,
-            mensagem
-        );
-        console.log(`Mensagem enviada para ${numero}`);
+        await client.sendMessage(numeroFormatado, mensagem);
 
-        res.status(200).send({ message: 'Mensagem enviada com sucesso!' });
+        console.log(`Mensagem enviada com sucesso para o número: ${numeroFormatado}`);
+        return res.status(200).json({ 
+            message: 'Mensagem enviada com sucesso!' 
+        });
     } catch (error) {
-        console.error('Erro ao enviar mensagem:', error);
-        res.status(500).send({ error: 'Erro ao enviar mensagem' });
-    }
+        console.error('Erro ao enviar mensagem:', error.message || error);
 
+        // Envia uma resposta clara sobre o erro
+        return res.status(500).json({ 
+            error: 'Ocorreu um erro ao enviar a mensagem. Por favor, tente novamente mais tarde.' 
+        });
+    }
 });
 
 // Endpoint para verificar se o servidor está ativo
