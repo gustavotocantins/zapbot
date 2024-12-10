@@ -107,7 +107,16 @@ const client = new Client({
         timeout: 60000,
     }, 
 });
+setInterval(() => {
+    client.pupPage.evaluate(() => {
+        console.log('Mantendo a sessão ativa');
+    });
+}, 5 * 60 * 1000); // A cada 5 minutos
 
+client.on('disconnected', (reason) => {
+    console.error('Cliente desconectado:', reason);
+    client.initialize();  // Tente inicializar novamente
+});
 
 // Gera o QR code para login no WhatsApp Web
 client.on('qr', (qr) => {
@@ -177,7 +186,7 @@ client.on('message', (message) => {
                 taxa:0,
                 troco: '',
                 estado: 'iniciar' }; // Inicia no estágio 1
-            message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
+            await client.sendMessage(message.from,'Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
                 .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?\nResponda: *Sim* ou *Não*'));
              // Inicia o pedido
             // Inicia o temporizador de 5 minutos
