@@ -155,7 +155,7 @@ app.get('/cliente/:whatsapp', async (req, res) => {
   }
 });
 app.post('/cliente', async (req, res) => {
-  const { nome, whatsapp, endereco, bairro } = req.body;
+  const { nome, whatsapp, endereco, bairro, genero } = req.body;
 
   if (!nome || !whatsapp || !endereco || !bairro) {
     return res.status(400).json({ error: 'Nome, WhatsApp e endereço são obrigatórios' });
@@ -167,17 +167,17 @@ app.post('/cliente', async (req, res) => {
 
     if (existingClient.length > 0) {
       // Se o WhatsApp existir, atualiza os outros dados
-      const sql = 'UPDATE clientes SET nome = ?, endereco = ?, bairro = ? WHERE whatsapp = ?';
-      await pool.execute(sql, [nome, endereco, bairro, whatsapp]);
+      const sql = 'UPDATE clientes SET nome = ?, endereco = ?, bairro = ?, genero = ? WHERE whatsapp = ?';
+      await pool.execute(sql, [nome, endereco, bairro, genero,whatsapp]);
 
       res.status(200).json({
         message: 'Cliente atualizado com sucesso',
-        cliente: { nome, whatsapp, endereco, bairro },
+        cliente: { nome, whatsapp, endereco, bairro,genero },
       });
     } else {
       // Se o WhatsApp não existir, insere um novo cliente
-      const sql = 'INSERT INTO clientes (nome, whatsapp, endereco, bairro) VALUES (?, ?, ?, ?)';
-      const [result] = await pool.execute(sql, [nome, whatsapp, endereco, bairro]);
+      const sql = 'INSERT INTO clientes (nome, whatsapp, endereco, bairro, genero) VALUES (?, ?, ?, ?,?)';
+      const [result] = await pool.execute(sql, [nome, whatsapp, endereco, bairro, genero]);
 
       res.status(201).json({
         message: 'Cliente cadastrado com sucesso',
