@@ -174,7 +174,7 @@ function isWithinWorkingHours() {
 }
 
 // Quando uma nova mensagem for recebida
-client.on('message', (message) => {
+client.on('message', async (message) => {
     // Verifica se a mensagem foi enviada em um chat privado
     if (!message.isGroupMsg) {
         console.log(message.body);
@@ -195,10 +195,39 @@ client.on('message', (message) => {
                 taxa:0,
                 troco: '',
                 estado: 'iniciar' }; // Inicia no estágio 1
-            client.sendMessage(message.from,'Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
+		async function consultarCliente(whatsapp) {
+                    try {
+                        const response = await fetch(`https://serveraquagas.shop:3001/cliente/${whatsapp}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                        });
+                
+                        if (response.ok) {
+                            const data = await response.json();
+                            const clienteTest = data.cliente;
+                            console.log(clienteTest);
+                            clientsInProgress[message.from].nome = clienteTest.nome;
+                            clientsInProgress[message.from].endereco = clienteTest.endereco;
+                            clientsInProgress[message.from].bairro = clienteTest.bairro;
+                            clientsInProgress[message.from].novo = true;
+                            return true
+                        } else {
+                            return false
+                        }
+                    } catch (error) {
+                       return false
+                    }
+                }
+            const info = await consultarCliente(message.from.split('@')[0]);
+            if (info){
+                message.reply(`Olá, *${clientsInProgress[message.from].nome}!* que bom ter você de volta! Vou te ajudar com o seu atendimento.`)
+                .then(() => client.sendMessage(message.from,'Você gostaria de fazer um pedido?\nResponda: *Sim* ou *Não*'));
+            }else{
+                message.reply('Seja Bem-vindo! Me chamo Bernardo, sou da *Água Bom Jesus* e vou te ajudar com o seu atendimento.')
                 .then(() => client.sendMessage(message.from,'Trabalhamos com água de 20 litros. Você gostaria de abrir o pedido?\nResponda: *Sim* ou *Não*'));
-             // Inicia o pedido
-            // Inicia o temporizador de 5 minutos
+            }
             startInactivityTimer(message.from);
         } else {
             // Verifica o estado do cliente e responde de acordo
@@ -252,6 +281,35 @@ const numeroTipo = {
     'quinze':3,
 
   };
+
+async function adicionarCliente(nome, whatsapp, endereco, bairro) {
+    const clienteData = {
+        nome,
+        whatsapp,
+        endereco,
+        bairro
+    };
+
+    try {
+        const response = await fetch('https://serveraquagas.shop:3001/cliente', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(clienteData),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Cliente adicionado');
+        } else {
+            const errorData = await response.json();
+            console.log('Cliente não adicionado');
+        }
+    } catch (error) {
+        console.error('Erro ao cadastrar cliente:', error.message);
+    }
+}
 // Função para gerenciar a resposta do cliente
 async function handleClientResponse(client, message) {
     const pedido = clientsInProgress[message.from];
@@ -337,9 +395,14 @@ async function handleClientResponse(client, message) {
         if (isNaN(quantidade) || quantidade <= 0) {
             message.reply('Por favor, forneça uma quantidade válida de garrafões.');
         } else {
-            pedido.quantidade = quantidade;
-            message.reply(`Você pediu ${pedido.quantidade} garrafões de 20 litros. Agora, por favor, me passe seu nome.`);
+           pedido.quantidade = quantidade;
+            if(pedido.novo){
+                message.reply(`Perfeito! você possui um *endereço salvo:*\n_Endereço: ${pedido.endereco}_\n_Bairro: ${pedido.bairro}_\n*Deseja fazer a entrega nesse endereço?*`);
+            pedido.estado = 'ConfirmarDados'; // Passar para o próximo passo
+            }else{
+                message.reply(`Você pediu ${pedido.quantidade} garrafões de 20 litros. Agora, por favor, me passe seu nome.`);
             pedido.estado = 'nome'; // Passar para o próximo passo
+            }
         }
     }
 
@@ -348,6 +411,35 @@ async function handleClientResponse(client, message) {
         pedido.nome = message.body;
         message.reply(`Olá, *${pedido.nome}!* Por favor, me informe seu *endereço* para entrega.`);
         pedido.estado = 'endereco'; // Passar para o próximo passo
+    }else if (pedido.estado === 'ConfirmarDados') {
+        
+        if (Confirmo.test(message.body.toLowerCase())) {
+            bairro = pedido.bairro;
+            pedido.estado = 'pagamento'
+            client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`);
+            if (bairro === "Campina" || bairro === "Cidade Velha"){
+                pedido.bairro = "Campina"
+                pedido.taxa = 0;
+            } else if(bairro == "Umarizal"){
+                pedido.taxa = 15;
+                pedido.bairro = "Umarizal"
+            } else if(bairro == 'Jurunas'){
+                pedido.taxa = 14.8;
+                pedido.bairro = "Jurunas"
+            }else if(bairro == 'Nazaré'){
+                pedido.taxa = 16.5;
+                pedido.bairro = "Nazaré"
+            }else if(bairro == 'Reduto'){
+                pedido.taxa = 8.5;
+                pedido.bairro = "Reduto"
+            } else{
+                pedido.estado = 'nome'
+                client.sendMessage(message.from,`Por favor, me diga *seu nome:*`);
+            }
+        }else{
+            pedido.estado = 'endereco'
+            client.sendMessage(message.from,`*${pedido.nome}!* Por favor, me informe seu *endereço* para entrega.`);
+        }
     }
 
     // Receber o endereço
