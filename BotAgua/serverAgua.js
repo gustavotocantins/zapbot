@@ -154,8 +154,6 @@ app.get('/cliente/:whatsapp', async (req, res) => {
     res.status(500).json({ error: 'Erro ao buscar cliente' });
   }
 });
-
-// Rota para cadastrar um novo cliente
 app.post('/cliente', async (req, res) => {
   const { nome, whatsapp, endereco, bairro } = req.body;
 
@@ -163,19 +161,35 @@ app.post('/cliente', async (req, res) => {
     return res.status(400).json({ error: 'Nome, WhatsApp e endereço são obrigatórios' });
   }
 
-  const sql = 'INSERT INTO clientes (nome, whatsapp, endereco,bairro) VALUES (?, ?, ?, ?)';
-
   try {
-    const [result] = await pool.execute(sql, [nome, whatsapp, endereco,bairro]);
-    res.status(201).json({
-      message: 'Cliente cadastrado com sucesso',
-      cliente: { id: result.insertId, nome, whatsapp, endereco,bairro },
-    });
+    // Verifica se o WhatsApp já existe
+    const [existingClient] = await pool.execute('SELECT * FROM clientes WHERE whatsapp = ?', [whatsapp]);
+
+    if (existingClient.length > 0) {
+      // Se o WhatsApp existir, atualiza os outros dados
+      const sql = 'UPDATE clientes SET nome = ?, endereco = ?, bairro = ? WHERE whatsapp = ?';
+      await pool.execute(sql, [nome, endereco, bairro, whatsapp]);
+
+      res.status(200).json({
+        message: 'Cliente atualizado com sucesso',
+        cliente: { nome, whatsapp, endereco, bairro },
+      });
+    } else {
+      // Se o WhatsApp não existir, insere um novo cliente
+      const sql = 'INSERT INTO clientes (nome, whatsapp, endereco, bairro) VALUES (?, ?, ?, ?)';
+      const [result] = await pool.execute(sql, [nome, whatsapp, endereco, bairro]);
+
+      res.status(201).json({
+        message: 'Cliente cadastrado com sucesso',
+        cliente: { id: result.insertId, nome, whatsapp, endereco, bairro },
+      });
+    }
   } catch (err) {
-    console.error('Erro ao cadastrar cliente:', err.message);
-    res.status(500).json({ error: 'Erro ao cadastrar cliente' });
+    console.error('Erro ao cadastrar ou atualizar cliente:', err.message);
+    res.status(500).json({ error: 'Erro ao cadastrar ou atualizar cliente' });
   }
 });
+
 
 // Rota para buscar um produto específico (opcional)
 app.get('/estoque/:id', async (req, res) => {
