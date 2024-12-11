@@ -281,13 +281,39 @@ const numeroTipo = {
     'quinze':3,
 
   };
+async function identificarGenero(nomeCompleto) {
+  try {
+    // Extrai o primeiro nome
+    const primeiroNome = nomeCompleto.split(' ')[0];
+    
+    // Faz a chamada para a API Genderize.io
+    const response = await axios.get(`https://api.genderize.io/?name=${primeiroNome}`);
+    const { gender } = response.data;
 
+    // Retorna "Masculino", "Feminino" ou "Não identificado" com base no gênero
+    if (gender === 'male') return 'Masculino';
+    if (gender === 'female') return 'Feminino';
+    return 'Não identificado';
+  } catch (error) {
+    console.error('Erro ao identificar o gênero:', error.message);
+    throw new Error('Não foi possível identificar o gênero');
+  }
+}
+
+// Exemplo de uso
+(async () => {
+  const nome = 'Gustavo Tocantins';
+  const genero = await identificarGenero(nome);
+  console.log(`O gênero identificado é: ${genero}`);
+})();
 async function adicionarCliente(nome, whatsapp, endereco, bairro) {
+    const generoInfo = await identificarGenero(nome);
     const clienteData = {
         nome,
         whatsapp,
         endereco,
-        bairro
+        bairro,
+	generoInfo
     };
 
     try {
@@ -309,7 +335,7 @@ async function adicionarCliente(nome, whatsapp, endereco, bairro) {
     } catch (error) {
         console.error('Erro ao cadastrar cliente:', error.message);
     }
-}
+};
 // Função para gerenciar a resposta do cliente
 async function handleClientResponse(client, message) {
     const pedido = clientsInProgress[message.from];
