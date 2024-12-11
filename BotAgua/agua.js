@@ -300,7 +300,7 @@ async function identificarGenero(nomeCompleto) {
   }
 }
 async function adicionarCliente(nome, whatsapp, endereco, bairro) {
-    const generoInfo = await identificarGenero(nome);
+    const genero = await identificarGenero(nome);
 	console.log(generoInfo);
 	console.log("AAAAAAAAAAAAAAAAA ACIMAAAA");
     const clienteData = {
@@ -308,7 +308,7 @@ async function adicionarCliente(nome, whatsapp, endereco, bairro) {
         whatsapp,
         endereco,
         bairro,
-	generoInfo
+	genero
     };
 
     try {
