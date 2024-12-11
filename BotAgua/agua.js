@@ -299,15 +299,10 @@ async function identificarGenero(nomeCompleto) {
     throw new Error('Não foi possível identificar o gênero');
   }
 }
-
-// Exemplo de uso
-(async () => {
-  const nome = 'Gustavo Tocantins';
-  const genero = await identificarGenero(nome);
-  console.log(`O gênero identificado é: ${genero}`);
-})();
 async function adicionarCliente(nome, whatsapp, endereco, bairro) {
     const generoInfo = await identificarGenero(nome);
+	console.log(generoInfo);
+	console.log("AAAAAAAAAAAAAAAAA ACIMAAAA");
     const clienteData = {
         nome,
         whatsapp,
