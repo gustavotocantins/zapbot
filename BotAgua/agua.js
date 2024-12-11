@@ -437,7 +437,8 @@ async function handleClientResponse(client, message) {
                 client.sendMessage(message.from,`Por favor, me diga *seu nome:*`);
             }
         }else{
-            pedido.estado = 'endereco'
+            pedido.estado = 'endereco';
+		pedido.novo = false;
             client.sendMessage(message.from,`*${pedido.nome}!* Por favor, me informe seu *endereço* para entrega.`);
         }
     }
@@ -638,7 +639,12 @@ async function handleClientResponse(client, message) {
             cliente: pedido.nome,
             whatsapp: message.from.split('@')[0]
           };
-          
+          if(pedido.novo){
+            console.log("Cliente existente");
+        }else{
+            adicionarCliente(pedido.nome,message.from.split('@')[0],pedido.endereco,pedido.bairro);
+            console.log("Cliente cadastrado");
+        }
           axios.post('https://serveraquagas.shop:3001/pedido', dadosPedido)
         .then(response => {
             console.log('Pedido adicionado com sucesso:', response.data);
