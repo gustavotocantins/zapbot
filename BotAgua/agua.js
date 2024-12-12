@@ -522,9 +522,16 @@ async function handleClientResponse(client, message) {
                 client.sendMessage(message.from, `Poxa, sentimos muito! Ainda não estamos atendendo no seu bairro, mas esperamos chegar aí em breve!`)
                 delete clientsInProgress[message.from];
             } else{
-                client.sendMessage(message.from, `Poxa, sentimos muito! Ainda não estamos atendendo o bairro *${bairro},* mas esperamos chegar aí em breve!`);
-                delete clientsInProgress[message.from];
-                return
+		if(!pedido.bairro){
+		pedido.bairro = "de você"
+		}
+                //client.sendMessage(message.from, `Poxa, sentimos muito! Ainda não estamos atendendo o bairro *${bairro},* mas esperamos chegar aí em breve!`);
+                client.sendMessage(message.from, `A taxa de entrega para o bairro *${bairro}* é de *graça!*`)
+                .then(() => client.sendMessage(message.from,`Qual será a forma de pagamento? Responda *"Dinheiro"* ou *"Pix"*.`));
+                pedido.taxa = 0;
+		pedido.bairro = "Guamá"
+		//delete clientsInProgress[message.from];
+                //return
             }
         pedido.estado = 'pagamento';
 }
